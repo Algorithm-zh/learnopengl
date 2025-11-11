@@ -12,7 +12,17 @@
 #include <learnopengl/model.h>
 
 #include <iostream>
-
+/*
+* 模板测试很有用的一个效果时，给物体加轮廓，当你想要告诉玩家选中的是哪个单位的时候，这个可以实现
+* 1.启用模板写入。
+* 2.在绘制（需要添加轮廓的）物体之前，将模板函数设置为GL_ALWAYS，每当物体的片段被渲染时，将模板缓冲更新为1。
+* 3.渲染物体。
+* 4.禁用模板写入以及深度测试。
+* 5.将每个物体缩放一点点。
+* 6.使用一个不同的片段着色器，输出一个单独的（边框）颜色。
+* 7.再次绘制物体，但只在它们片段的模板值不等于1时才绘制。
+* 8.再次启用模板写入和深度测试。
+*/
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -75,8 +85,18 @@ int main()
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
+    //开启模板测试
     glEnable(GL_STENCIL_TEST);
-    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    //不相等时通过模板测试
+    // ref：设置了模板测试的参考值(Reference Value)。模板缓冲的内容将会与这个值进行比较。
+    // mask：设置一个掩码，它将会与参考值和储存的模板值在测试比较它们之前进行与(AND)运算。初始情况下所有位都为1。
+    //这个会告诉opengl,只要一个片段模板不等于参考值1,就会通过测试并被绘制，否则会被丢弃
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);//每一位写入模板缓冲时都保持原样
+    //告诉opengl应如何更新缓冲
+    // sfail：模板测试失败时采取的行为。
+    // dpfail：模板测试通过，但深度测试失败时采取的行为。
+    // dppass：模板测试和深度测试都通过时采取的行为。
+    //让gl在深度和模板测试都通过的时候再将存储的模板值设置为参考值
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     // build and compile shaders
@@ -130,6 +150,7 @@ int main()
         -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
         -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
+    //地板的坐标
     float planeVertices[] = {
         // positions          // texture Coords (note we set these higher than 1 (together with GL_REPEAT as texture wrapping mode). this will cause the floor texture to repeat)
          5.0f, -0.5f,  5.0f,  2.0f, 0.0f,
@@ -206,8 +227,10 @@ int main()
         shader.setMat4("view", view);
         shader.setMat4("projection", projection);
 
-        // draw floor as normal, but don't write the floor to the stencil buffer, we only care about the containers. We set its mask to 0x00 to not write to the stencil buffer.
-        glStencilMask(0x00);
+        // draw floor as normal, but don't write the floor to the stencil buffer, 
+        // we only care about the containers. We set its mask to 0x00 to not write to the stencil buffer.
+        //将地板的模板缓冲清除为0
+        glStencilMask(0x00);//关闭模板缓冲写入
         // floor
         glBindVertexArray(planeVAO);
         glBindTexture(GL_TEXTURE_2D, floorTexture);
@@ -217,8 +240,9 @@ int main()
 
         // 1st. render pass, draw objects as normal, writing to the stencil buffer
         // --------------------------------------------------------------------
-        glStencilFunc(GL_ALWAYS, 1, 0xFF);
-        glStencilMask(0xFF);
+        //绘制立方体
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);//所有片段都应该更新模板缓冲
+        glStencilMask(0xFF);//启用模板缓冲写入
         // cubes
         glBindVertexArray(cubeVAO);
         glActiveTexture(GL_TEXTURE0);
@@ -230,16 +254,18 @@ int main()
         model = glm::translate(model, glm::vec3(2.0f, 0.0f, 0.0f));
         shader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-
+        //禁用深度测试，为了让放大的箱子，即边框不会被地板覆盖
         // 2nd. render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
         // Because the stencil buffer is now filled with several 1s. The parts of the buffer that are 1 are not drawn, thus only drawing 
         // the objects' size differences, making it look like borders.
         // -----------------------------------------------------------------------------------------------------------------------------
+        //它会保证我们只绘制箱子上模板值不为1的部分，即只绘制在之前绘制的箱子之外的部分
         glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-        glStencilMask(0x00);
-        glDisable(GL_DEPTH_TEST);
+        glStencilMask(0x00);//关闭模板缓冲写入
+        glDisable(GL_DEPTH_TEST);//禁用深度测试，为了让放大的箱子，即边框不会被地板覆盖
         shaderSingleColor.use();
         float scale = 1.1f;
+        //绘制放大后的立方体(因为前面使用了模板缓冲，这里只绘制边框)
         // cubes
         glBindVertexArray(cubeVAO);
         glBindTexture(GL_TEXTURE_2D, cubeTexture);
@@ -254,9 +280,11 @@ int main()
         shaderSingleColor.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
+        
+        //相当于清空之类的工作
         glStencilMask(0xFF);
         glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_DEPTH_TEST);//重新启动深度缓冲
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------

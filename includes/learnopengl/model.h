@@ -63,6 +63,7 @@ private:
         }
         // retrieve the directory path of the filepath
         directory = path.substr(0, path.find_last_of('/'));
+        std::cout << directory << std::endl;
 
         // process ASSIMP's root node recursively
         processNode(scene->mRootNode, scene);
@@ -118,6 +119,7 @@ private:
                 glm::vec2 vec;
                 // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
                 // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
+                //Assimp允许一个模型在一个顶点上有最多8个不同的纹理坐标，我们不会用到那么多，我们只关心第一组纹理坐标
                 vec.x = mesh->mTextureCoords[0][i].x; 
                 vec.y = mesh->mTextureCoords[0][i].y;
                 vertex.TexCoords = vec;
@@ -143,6 +145,7 @@ private:
             aiFace face = mesh->mFaces[i];
             // retrieve all indices of the face and store them in the indices vector
             for(unsigned int j = 0; j < face.mNumIndices; j++)
+                //索引(顶点绘制顺序)
                 indices.push_back(face.mIndices[j]);        
         }
         // process materials
@@ -179,9 +182,12 @@ private:
         for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
         {
             aiString str;
+            //获取每个纹理的文件位置, 他会将结果存储在一个astring里
             mat->GetTexture(type, i, &str);
             // check if texture was loaded before and if so, continue to next iteration: skip loading a new texture
             bool skip = false;
+
+            //看看是不是已经加载过了
             for(unsigned int j = 0; j < textures_loaded.size(); j++)
             {
                 if(std::strcmp(textures_loaded[j].path.data(), str.C_Str()) == 0)
@@ -194,6 +200,7 @@ private:
             if(!skip)
             {   // if texture hasn't been loaded already, load it
                 Texture texture;
+                //加载一个纹理并返回该纹理的id
                 texture.id = TextureFromFile(str.C_Str(), this->directory);
                 texture.type = typeName;
                 texture.path = str.C_Str();

@@ -74,8 +74,30 @@ int main()
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    //启用混合
     glEnable(GL_BLEND);
+    //设置rgba的混合因子
+    // GL_ZERO (0,0,0,0) 混合因子都为0；
+    // GL_ONE (1,1,1,1) 混合因子都为1；
+    // GL_SRC_COLOR (Rs,Gs,Bs,As) 混合因子为源颜色分量；
+    // GL_ONE_MINUS_SRC_COLOR (1-Rs,1-Gs,1-Bs,1-As) 混合因子为1-C_source;
+    // GL_SRC_ALPHA (As,As,As,As) 混合因子为源Alpha值；
+    // GL_ONE_MINUS_SRC_ALPHA (1-As,1-As,1-As,1-As) 混合因子为1-f_source;
+    // GL_DST_COLOR (Rd,Gd,Bd,Ad) 混合因子为目标颜色分量；
+    // GL_ONE_MINUS_DST_COLOR (1-Rd,1-Gd,1-Bd,1-Ad) 混合因子为1-C_destination;
+    // GL_DST_ALPHA (Ad,Ad,Ad,Ad) 混合因子为目标Alpha值；
+    // GL_ONE_MINUS_DST_ALPHA (1-Ad,1-Ad,1-Ad,1-Ad) 混合因子为1-f_destination;
+    // GL_CONSTANT_COLOR (Rc,Gc,Bc,Ac) 混合因子为常量颜色；
+    // GL_ONE_MINUS_CONSTANT_COLOR (1-Rc,1-Gc,1-Bc,1-Ac) 混合因子为1-常量颜色；
+    // GL_CONSTANT_ALPHA (Rc,Gc,Bc,Ac) 混合因子为常量Alpha;
+    // GL_ONE_MINUS_CONSTANT_ALPHA (1-Rc,1-Gc,1-Bc,1-Ac) 混合因子为1-常量Alpha;
+    // GL_SRC_ALPHA_SATURATE (min(As,1-Ad)) 混合因子为源Alpha和（1-目标Alpha）的最小值；
+    // 其中R指的是红色通道、G指的是绿色通道、B指的是蓝色通道、A指的是Alpha、s指的是源（输入片段），d指的是目标（目标像素），c指的是自定义的常量。
+    // 以GL_ONE_MINUS_DST_ALPHA为例，1-Ad指的是1-目标Alpha。
+    //这意思差不多就是源因子alpha越大，新颜色中源原色所占比例越大,而目标颜色所占比例则小
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //默认就是两个源和目标相加
+    glBlendEquation(GL_FUNC_ADD);
 
     // build and compile shaders
     // -------------------------
@@ -217,12 +239,19 @@ int main()
         // input
         // -----
         processInput(window);
-
+        // 要想让混合在多个物体上工作，我们需要最先绘制最远的物体，最后绘制最近的物体。
+        // 普通不需要混合的物体仍然可以使用深度缓冲正常绘制，所以它们不需要排序。
+        // 但我们仍要保证它们在绘制（排序的）透明物体之前已经绘制完毕了。当绘制一个有不透明和透明物体的场景的时候，大体的原则如下：
+        // 1.先绘制所有不透明的物体。
+        // 2.对所有透明的物体排序。
+        // 3.按顺序绘制所有透明的物体。
+ 
         // sort the transparent windows before rendering
         // ---------------------------------------------
-        std::map<float, glm::vec3> sorted;
+        std::map<float, glm::vec3> sorted;//从低到高存储每个窗户的位置
         for (unsigned int i = 0; i < windows.size(); i++)
         {
+            //计算摄像机位置向量和物体的位置向量之间的距离,也就是观察者到物理的距离
             float distance = glm::length(camera.Position - windows[i]);
             sorted[distance] = windows[i];
         }
@@ -259,6 +288,7 @@ int main()
         // windows (from furthest to nearest)
         glBindVertexArray(transparentVAO);
         glBindTexture(GL_TEXTURE_2D, transparentTexture);
+        //逆序由远及近进行绘制窗户
         for (std::map<float, glm::vec3>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
         {
             model = glm::mat4(1.0f);

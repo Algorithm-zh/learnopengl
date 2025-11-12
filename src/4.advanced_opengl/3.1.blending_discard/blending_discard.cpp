@@ -188,6 +188,7 @@ int main()
 
     // transparent vegetation locations
     // --------------------------------
+    //草的位置
     vector<glm::vec3> vegetation 
     {
         glm::vec3(-1.5f, 0.0f, -0.48f),
@@ -346,12 +347,13 @@ unsigned int loadTexture(char const * path)
         else if (nrComponents == 3)
             format = GL_RGB;
         else if (nrComponents == 4)
-            format = GL_RGBA;
+            format = GL_RGBA;//使用alpha通道
 
         glBindTexture(GL_TEXTURE_2D, textureID);
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
+        //如果用repeat的话，由于使用的是透明值，纹理图像的顶部会与底部边缘的纯色值进行插值，造成一个半透明的有色边框
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

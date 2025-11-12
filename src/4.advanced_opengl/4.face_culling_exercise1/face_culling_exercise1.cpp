@@ -45,5 +45,6 @@ float vertices[] = {
 
 /* Also make sure to add a call to OpenGL to specify that triangles defined by a clockwise ordering 
    are now 'front-facing' triangles so the cube is rendered as normal:
+   告诉opengl顺时针的顺序才是正向面,默认是GL_CCW，逆时针
    glFrontFace(GL_CW);
 */

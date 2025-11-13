@@ -192,29 +192,44 @@ int main()
 
     screenShader.use();
     screenShader.setInt("screenTexture", 0);
-
+//将场景渲染到一个附加到帧缓冲对象上的颜色纹理中
     // framebuffer configuration
     // -------------------------
     unsigned int framebuffer;
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    //把纹理作为附件添加到帧缓冲,所有的渲染指令将会写入到这个纹理中,就像它是一个普通的颜色或模板缓冲一样
     // create a color attachment texture
     unsigned int textureColorbuffer;
     glGenTextures(1, &textureColorbuffer);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    //将data设置为null,填充这个纹理会在我们渲染到帧缓冲之后进行
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //将纹理附加到帧缓冲上
+    // target：帧缓冲的目标（绘制、读取或者两者皆有）
+    // attachment：我们想要附加的附件类型。当前我们正在附加一个颜色附件。注意最后的0意味着我们可以附加多个颜色附件。我们将在之后的教程中提到。
+    // textarget：你希望附加的纹理类型
+    // texture：要附加的纹理本身
+    // level：多级渐远纹理的级别。我们将它保留为0。
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+
+
     // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
+    //创建一个渲染缓冲对象将深度和模板测试也附加到帧缓冲对象上
     unsigned int rbo;
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    //创建一个深度和模板渲染缓冲对象，GL_DEPTH24_STENCIL8封装了24位的深度和8位的模板缓冲
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT); // use a single renderbuffer object for both a depth AND stencil buffer.
+    //将渲染缓冲对象附加到帧缓冲的深度和模板附件上
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
     // now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
+    //检查帧缓冲是否完整
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << endl;
+    //记得解绑帧缓冲
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // draw as wireframe
@@ -269,6 +284,8 @@ int main()
         glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
 
+        //绑定默认的帧缓冲
+        //绘制一个横跨整个屏幕的四边形，将帧缓冲的颜色缓冲作为它的纹理
         // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
